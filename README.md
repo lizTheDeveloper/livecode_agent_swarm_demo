@@ -49,7 +49,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Set up environment variables:
+4. Install spaCy language model (for prompt injection detection):
+```bash
+python -m spacy download en_core_web_sm
+```
+
+5. Set up environment variables:
 ```bash
 export OPENAI_API_KEY="your-api-key-here"
 ```
@@ -64,6 +69,7 @@ See `requirements.txt` for full list of dependencies. Key packages:
 - fastmcp
 - beautifulsoup4
 - requests
+- spacy (for prompt injection detection)
 
 ## Project Structure
 
@@ -97,11 +103,31 @@ The system uses LangGraph's `StateGraph` with:
 - **ToolNode**: Automatically executes tool calls from the LLM
 - **Conditional Edges**: Routes between agents based on tool calls and evaluation results
 
+## Security Features
+
+The system includes prompt injection detection using spaCy:
+
+- **Automatic Detection**: All user inputs and feedback are scanned for injection attempts
+- **Multiple Detection Strategies**: Pattern matching, dependency parsing, NER, and encoding detection
+- **Automatic Sanitization**: Detected injections are automatically sanitized before processing
+- **Severity Levels**: LOW, MEDIUM, HIGH, and CRITICAL severity classifications
+- **Comprehensive Logging**: Security alerts are logged for monitoring
+
+See `security/README.md` for detailed documentation.
+
+## Testing
+
+Run the test suite:
+```bash
+pytest tests/ -v
+```
+
 ## Notes
 
 - All API keys should be set via environment variables, never hardcoded
 - The MCP server paths are automatically resolved relative to the script location
 - Async/await is used throughout for proper tool execution
+- Prompt injection detection requires spaCy model: `python -m spacy download en_core_web_sm`
 
 ## License
 
