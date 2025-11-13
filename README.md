@@ -81,7 +81,13 @@ See `requirements.txt` for full list of dependencies. Key packages:
 ├── evaluator_optimizer.py      # Simple evaluator example
 ├── mlx_llm_wrapper.py          # MLX LLM wrapper (if using local models)
 ├── requirements.txt            # Python dependencies
-└── README.md                   # This file
+├── SECURITY_REMEDIATION_PLAN.md # Security remediation plan based on ATFAA
+├── security/                   # Security module
+│   ├── __init__.py
+│   ├── prompt_injection_detector.py  # spaCy-based injection detection
+│   └── README.md
+└── tests/                      # Test suite
+    └── test_prompt_injection_detector.py
 ```
 
 ## How It Works
