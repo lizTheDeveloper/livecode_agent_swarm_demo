@@ -16,6 +16,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import ToolNode, tools_condition
 from typing import Annotated
 from langgraph.graph.message import add_messages
+from security.prompt_injection_detector import PromptInjectionDetector, InjectionSeverity
 
 
 
@@ -42,6 +43,15 @@ async def main():
     tools = await client.get_tools()
     print(f"Retrieved {len(tools)} tools from MCP servers")
 
+    print("Initializing security components...")
+    try:
+        injection_detector = PromptInjectionDetector()
+        print("Prompt injection detector initialized")
+    except ValueError as e:
+        print(f"Warning: Could not initialize prompt injection detector: {e}")
+        print("Install spaCy model with: python -m spacy download en_core_web_sm")
+        injection_detector = None
+    
     print("Initializing LLM...")
     llm = ChatOpenAI(model="gpt-4o")
     llm_with_tools = llm.bind_tools(tools)
@@ -84,9 +94,31 @@ async def main():
         
         # Add prompt based on feedback
         if state.get("feedback"):
-            prompt = f"Write 5 jokes about current events, using the tools provided, but take into account the feedback: {state['feedback']}, here are the previous jokes you've already written: {state['previous_jokes']}. Give the corresponding probabilities for each joke."
+            feedback_text = state['feedback']
+            # Check for prompt injection in feedback
+            if injection_detector:
+                feedback_detection = injection_detector.detect(feedback_text)
+                if feedback_detection.is_injection:
+                    print(f"⚠️  SECURITY ALERT: Prompt injection detected in feedback!")
+                    print(f"   Severity: {feedback_detection.severity.value}")
+                    print(f"   Patterns: {', '.join(feedback_detection.patterns_found)}")
+                    # Sanitize the feedback
+                    feedback_text, _ = injection_detector.sanitize(feedback_text)
+                    print(f"   Sanitized feedback used")
+            
+            prompt = f"Write 5 jokes about current events, using the tools provided, but take into account the feedback: {feedback_text}, here are the previous jokes you've already written: {state['previous_jokes']}. Give the corresponding probabilities for each joke."
         else:
             prompt = f"Write 5 jokes about current events, using the tools provided, with their corresponding probabilities"
+        
+        # Final check on the complete prompt
+        if injection_detector:
+            prompt_detection = injection_detector.detect(prompt)
+            if prompt_detection.is_injection and prompt_detection.severity in [InjectionSeverity.HIGH, InjectionSeverity.CRITICAL]:
+                print(f"🚨 CRITICAL: Prompt injection detected in final prompt!")
+                print(f"   {prompt_detection.explanation}")
+                # Sanitize the prompt
+                prompt, _ = injection_detector.sanitize(prompt)
+                print(f"   Using sanitized prompt")
         
         messages.append(HumanMessage(content=prompt))
         
